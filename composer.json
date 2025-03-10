@@ -1,0 +1,38 @@
+{
+  "name": "sidus/perceptual-hash",
+  "description": "PHP library for perceptual image hashing",
+  "keywords": ["imagehash", "perceptual", "hash", "dhash", "ahash", "phash", "image hash"],
+  "homepage": "https://github.com/VincentChalnot/perceptual-hash",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Anatoly Pashin",
+      "homepage": "https://github.com/b1rdex"
+    },
+    {
+      "name": "Jens Segers",
+      "homepage": "https://jenssegers.com"
+    },
+    {
+      "name": "Kenneth Rapp"
+    },
+    {
+      "name": "Vincent Chalnot",
+      "homepage": "https://github.com/VincentChalnot"
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "intervention/image": "^3.0"
+  },
+  "suggest": {
+    "ext-gd": "GD or ImageMagick is required",
+    "ext-imagick": "GD or ImageMagick is required",
+    "intervention/image-driver-vips": "Better performances with the vips driver"
+  },
+  "autoload": {
+    "psr-4": {
+      "Sidus\\PerceptualHash\\": "src"
+    }
+  }
+}
