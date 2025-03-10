@@ -9,12 +9,9 @@ use Intervention\Image\Drivers;
 use Sidus\PerceptualHash\PerceptualHash;
 
 if ($argc < 2) {
-    echo "Usage: php get_hash.php <image_path>\n";
+    echo "Usage: php get_hash.php <image_path> (...<image_path>)\n";
     exit(1);
 }
-
-$imagePath = $argv[1];
-$size = $argv[2] ?? 32;
 
 $drivers = [
     'gd' => Drivers\Gd\Driver::class,
@@ -30,18 +27,27 @@ if (!isset($manager)) {
     exit(1);
 }
 
-try {
-    $image = $manager->read($imagePath);
-} catch (Exception $e) {
-    echo "Error loading image: {$e->getMessage()}\n";
-    exit(1);
-}
+$lastHash = null;
+foreach (array_slice($argv, 1) as $imagePath) {
+    if (!file_exists($imagePath)) {
+        echo "File not found: $imagePath\n";
+        continue;
+    }
+    try {
+        $image = $manager->read($imagePath);
+    } catch (Exception $e) {
+        echo "Error loading image: {$e->getMessage()}\n";
+        exit(1);
+    }
 
-$hash = new PerceptualHash();
-$bits = $hash->hash($image);
+    $hash = PerceptualHash::hash($image);
+    if (null !== $lastHash) {
+        // Perform a bitwise XOR operation with the last hash
+        $diff = $hash ^ $lastHash;
+        $distance = PerceptualHash::distance($hash, $lastHash);
+        echo '                   - 0b'.str_pad(decbin($diff), 64, '0', STR_PAD_LEFT)." : (distance = {$distance})\n";
+    }
+    echo '0x'.dechex($hash).' - 0b'.str_pad(decbin($hash), 64, '0', STR_PAD_LEFT)." : {$imagePath}\n";
 
-foreach ($bits as $bit) {
-    // Convert to binary string
-    echo str_pad(decbin($bit), 8, '0', STR_PAD_LEFT);
+    $lastHash = $hash;
 }
-echo "\n";
