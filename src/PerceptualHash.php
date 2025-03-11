@@ -5,10 +5,37 @@ namespace Sidus\PerceptualHash;
 
 use Intervention\Image\Image;
 
+/**
+ * Refactored version of a class from the https://github.com/jenssegers/imagehash library.
+ * Original class authored by Anatoly Pashin @b1rdex (via pull request).
+ * Original library maintained by Jens Segers @jenssegers.
+ *
+ * Refactored and maintained by Vincent Chalnot.
+ *
+ * This file is part of a library licensed under the MIT License.
+ * 
+ * MIT License
+ * Copyright (c) 2025 Vincent Chalnot
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ * 
+ * @author Vincent Chalnot
+ * @author Anatoly Pashin (Original author of the class)
+ * @license MIT (https://opensource.org/licenses/MIT)
+ */
 class PerceptualHash
 {
     private const SIZE = 32;
     private const SIZE_SQRT = 0.25;
+    private const MATRIX_SIZE = 11;
 
     private const DCT_11_32 = [
         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -38,29 +65,28 @@ class PerceptualHash
         return $distance;
     }
 
+    /**
+     * Calculate the perceptual hash of an image, returns the hash as an integer to allow bitwise operations.
+     */
     public static function hash(Image $image): int
     {
-        // Resize the image.
-        $resized = $image->resize(self::SIZE, self::SIZE);
+        $resized = $image->greyscale()->resize(self::SIZE, self::SIZE);
 
-        $matrix = [];
-        $row = [];
         $rows = [];
-        $col = [];
-
-        $matrixSize = 11;
-
         for ($y = 0; $y < self::SIZE; $y++) {
+            $row = [];
             for ($x = 0; $x < self::SIZE; $x++) {
-                $rgb = $resized->pickColor($x, $y)->toArray();
-                $row[$x] = (int) floor(($rgb[0] * 0.299) + ($rgb[1] * 0.587) + ($rgb[2] * 0.114));
+                $rgba = $resized->pickColor($x, $y)->toArray();
+                $row[$x] = $rgba[0]; // Pick any channel, image is already grayscale
             }
-            $rows[$y] = self::calculateDCT($row, $matrixSize);
+            $rows[$y] = self::calculateDCT($row, self::MATRIX_SIZE);
         }
 
-        $rowMatrixSize = $matrixSize;
+        $rowMatrixSize = self::MATRIX_SIZE;
 
-        for ($x = 0; $x < $matrixSize; $x++) {
+        $matrix = [];
+        for ($x = 0; $x < self::MATRIX_SIZE; $x++) {
+            $col = [];
             for ($y = 0; $y < self::SIZE; $y++) {
                 $col[$y] = $rows[$y][$x];
             }
@@ -68,13 +94,12 @@ class PerceptualHash
             $rowMatrixSize--;
         }
 
-        $pixels = self::diagonalMatrix($matrix, $matrixSize);
+        $pixels = self::diagonalMatrix($matrix, self::MATRIX_SIZE);
 
         $pixels = array_slice($pixels, 1, 64); // discard first and cut to size
 
         $compare = self::average($pixels);
 
-        // Calculate hash.
         $bits = [];
         foreach ($pixels as $pixel) {
             $bits[] = ($pixel > $compare);
@@ -86,9 +111,9 @@ class PerceptualHash
     /**
      * Perform a 1 dimension Discrete Cosine Transformation.
      *
-     * @param int[]|float[] $matrix
+     * @param array<int,int|float> $matrix
      *
-     * @return float[]
+     * @return array<int,float>
      */
     private static function calculateDCT(array $matrix, int $partialSize): array
     {
@@ -111,6 +136,8 @@ class PerceptualHash
 
     /**
      * Get the diagonal matrix of the DCT.
+     * 
+     * @param array<int,float> $mat
      */
     private static function diagonalMatrix(array $mat, int $size = 11): array
     {
@@ -144,6 +171,8 @@ class PerceptualHash
 
     /**
      * Get the average of the pixel values.
+     * 
+     * @param array<int,float> $pixels
      */
     private static function average(array $pixels): float
     {
@@ -154,9 +183,9 @@ class PerceptualHash
     }
 
     /**
-     * Get the packed hash as an array of integers
+     * Pack an array of bits into an integer.
      * 
-     * @param bool[] $bits
+     * @param array<int,bool> $bits
      */
     public static function getInteger(array $bits): int
     {
